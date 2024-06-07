@@ -3,7 +3,7 @@
         <slot name="prepend"></slot>
 
         <div class="c-editor-header">
-            <Upload v-if="attachmentEnable" @insert="insertAttachments" />
+            <Upload v-if="attachmentEnable" @insert="insertAttachments" :uploadFn="uploadFn" />
         </div>
 
         <slot></slot>
@@ -15,7 +15,7 @@
             class="c-tinymce"
             placeholder="✔ 图片可右键粘贴或拖拽至编辑器内自动上传 ✔ 支持word/excel内容一键粘贴"
         />
-        <el-alert class="u-tutorial" type="warning" show-icon
+        <el-alert class="u-tutorial" type="warning" show-icon v-if="showTips"
             >进入特殊区域（代码块，折叠块等等）脱离或使用工具栏触发后，请使用键盘方向 → ↓
             键进行脱离，回车只是正常在区块内换行。去掉样式点击第二行第一个&lt;清除格式&gt;即可复位。
             <!-- <a href="" target="_blank">[编辑器使用指南]</a> -->
@@ -29,14 +29,14 @@
 import Editor from "@tinymce/tinymce-vue";
 import Upload from "./Upload";
 import hljs_languages from "../assets/js/hljs_languages.js";
-import { __cms } from "@deepberry/common/data/common.json";
+import { __cms, __cdn } from "./settings.js";
 
 const API_Root = process.env.NODE_ENV === "production" ? __cms : "/";
 const API = API_Root + "api/cms/system/upload/via/tinymce";
 
 export default {
     name: "Tinymce",
-    props: ["modelValue", "height", "attachmentEnable"],
+    props: ["modelValue", "height", "attachmentEnable", "showTips", "uploadFn"],
     emits: ["update:modelValue"],
     data: function () {
         return {
@@ -53,7 +53,7 @@ export default {
 
                 // 样式
                 // TODO:
-                content_css: `https://oss.jx3box.com/static/tinymce/skins/content/default/content.min.css`,
+                content_css: `${__cdn}/static/tinymce/skins/content/default/content.min.css`,
                 // content_css: `http://localhost:5000/skins/content/default/content.min.css`,
                 body_class: "c-article c-article-editor c-article-tinymce",
                 height: this.height || 800,
@@ -72,7 +72,7 @@ export default {
                 ],
                 toolbar: [
                     "undo | formatselect | fontsizeselect | forecolor backcolor | bold italic underline strikethrough superscript subscript | link unlink | fullscreen code", //restoredraft
-                    "removeformat | hr alignleft aligncenter alignright alignjustify indent outdent | bullist numlist checklist table blockquote foldtext codeinline codesample latex | emoticons image media | pagebreak printpage", // template anchor jx3icon
+                    "removeformat | hr alignleft aligncenter alignright alignjustify indent outdent | bullist numlist checklist table blockquote foldtext codeinline codesample latex | image media", // template anchor jx3icon
                 ],
                 mobile: {
                     toolbar_drawer: true,
