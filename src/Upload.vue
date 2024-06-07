@@ -2,9 +2,7 @@
     <div class="c-upload">
         <!-- 上传触发按钮 -->
         <el-button type="primary" @click="dialogVisible = true" :disabled="!enable">
-            <el-icon class="u-icon">
-                <UploadFilled />
-            </el-icon>
+            <el-icon class="u-icon"><UploadFilled /></el-icon>
             {{ btn_txt }}
         </el-button>
 
@@ -12,7 +10,7 @@
         <el-dialog class="c-large-dialog" title="上传" v-model="dialogVisible" @close="closeUpload">
             <!-- 清空按钮 -->
             <el-button class="u-upload-clear" plain size="small" @click="clear"
-                ><el-icon> <Delete /> </el-icon>清空</el-button
+                ><el-icon><Delete /></el-icon>清空</el-button
             >
 
             <!-- 限制提示 -->
@@ -20,20 +18,19 @@
 
             <!-- 文件区 -->
             <el-upload
+                :action="API"
                 list-type="picture-card"
                 :auto-upload="false"
-                :limit="limit"
+                :limit="10"
                 multiple
+                with-credentials
                 :file-list="fileList"
                 :on-change="change"
                 ref="uploadbox"
                 :accept="accept"
-                :on-exceed="onExceed"
             >
                 <template #default>
-                    <el-icon>
-                        <Plus />
-                    </el-icon>
+                    <el-icon><Plus /></el-icon>
                 </template>
 
                 <!-- 文件项 -->
@@ -45,8 +42,8 @@
                             isSelected: file.selected,
                             disabled: file.status != 'success',
                         }"
-                        v-loading="file.status === 'uploading'"
                     >
+                        <!-- FIXME: 此处为强制刷新file，优雅的实现方式有待发掘 -->
                         <span style="display: none">{{ fileList }}</span>
                         <!-- 图片类型 -->
                         <img v-if="file.is_img" class="el-upload-list__item-thumbnail u-imgbox" :src="file.url" alt />
@@ -57,9 +54,7 @@
                         </div>
                         <!-- 勾选角标 -->
                         <label v-show="file.selected" class="u-file-select-label">
-                            <el-icon class="el-icon-upload-success el-icon-check" color="#fff">
-                                <Check />
-                            </el-icon>
+                            <el-icon class="el-icon-upload-success el-icon-check" color="#fff"><Check /></el-icon>
                         </label>
                     </div>
                 </template>
@@ -79,35 +74,14 @@
 </template>
 
 <script>
-// import axios from "axios";
-import { uniqBy } from "lodash";
-import { __cdn } from "./settings.js";
-// const API_Root = process.env.NODE_ENV === "production" ? __cms : "/";
-// const API = API_Root + "api/cms/system/upload/via/cms";
+import axios from "axios";
+import __setting from "@deepberry/common/data/common.json";
+const API_Root = process.env.NODE_ENV === "production" ? __setting.__cms : "/";
+const API = API_Root + "api/cms/system/upload/via/cms";
 import { ElButton, ElDialog, ElIcon } from "element-plus";
 import { Plus, UploadFilled, Delete, Check } from "@element-plus/icons-vue";
 
 const imgtypes = ["jpg", "png", "gif", "bmp", "webp", "jpeg", "JPG", "PNG", "GIF", "BMP", "WEBP", "JPEG"];
-const videoTypes = [
-    "mp4",
-    "MP4",
-    "mov",
-    "MOV",
-    "avi",
-    "AVI",
-    "rmvb",
-    "RMVB",
-    "rm",
-    "RM",
-    "flv",
-    "FLV",
-    "3gp",
-    "3GP",
-    "wmv",
-    "WMV",
-    "mkv",
-    "MKV",
-];
 
 export default {
     name: "Upload",
@@ -137,17 +111,10 @@ export default {
             type: Boolean,
             default: true,
         },
-        limit: {
-            type: Number,
-            default: 10,
-        },
-        uploadFn: {
-            type: Function,
-            required: true,
-        },
     },
     data: function () {
         return {
+            API: API,
             dialogVisible: false,
             tip: this.desc || "一次最多同时上传10个文件（单个文件不超过20M），格式限常见的图片、文档、数据表及压缩包",
             btn_txt: this.text || "上传附件",
@@ -189,7 +156,6 @@ export default {
                 // 分析文件类型
                 let ext = file.name.split(".").pop();
                 const is_img = imgtypes.includes(ext);
-                const is_video = videoTypes.includes(ext);
 
                 if (this.onlyImage && !is_img) return;
 
@@ -197,9 +163,22 @@ export default {
                 let fdata = new FormData();
                 fdata.append("file", file.raw);
 
-                file.status = "uploading";
-                this.uploadFn(file.raw)
+                // 异步上传
+                axios
+                    .post(API, fdata, {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                        withCredentials: true,
+                    })
                     .then((res) => {
+                        if (res.data.code) {
+                            this.$message({
+                                message: res.data.msg,
+                                type: "error",
+                            });
+                            return;
+                        }
                         // 提醒
                         this.$message({
                             message: "上传成功",
@@ -207,17 +186,15 @@ export default {
                         });
 
                         // 修改path
-                        file.url = res?.name && __cdn + "/" + res.name;
+                        file.url = res?.data?.data?.name && __setting.__cdn + res.data.data.name;
 
                         // 额外赋值
                         file.is_img = is_img;
-                        file.is_video = is_video;
                         file.selected = true;
 
                         // 修改状态加入仓库
                         file.status = "success";
                         this.fileList.push(file);
-                        this.fileList = uniqBy(this.fileList, "url");
                         this.selectedCount++;
 
                         this.$forceUpdate();
@@ -228,8 +205,6 @@ export default {
                         } else {
                             this.$message.error("请求异常");
                         }
-
-                        file.status = "fail";
                     });
             }
         },
@@ -245,8 +220,6 @@ export default {
                 if (file.selected) {
                     file.is_img
                         ? list.push(`<img src="${file.url}" />`)
-                        : file.is_video
-                        ? list.push(`<video src="${file.url}" controls />`)
                         : list.push(`<a target="_blank" href="${file.url}">${file.name}</a>`);
                 }
             });
