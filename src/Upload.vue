@@ -207,7 +207,7 @@ export default {
                         });
 
                         // 修改path
-                        file.url = res?.name && __cdn + "/" + res.name;
+                        file.url = res?.name && __setting.__cdn + "/" + res.name;
 
                         // 额外赋值
                         file.is_img = is_img;
@@ -223,7 +223,7 @@ export default {
                         this.$forceUpdate();
                     })
                     .catch((err) => {
-                        if (err.response.data.code) {
+                        if (err.response?.data?.code) {
                             this.$message.error(`[${err.response.data.code}] ${err.response.data.message}`);
                         } else {
                             this.$message.error("请求异常");
@@ -293,6 +293,9 @@ export default {
         closeUpload() {
             this.fileList = [];
             this.$refs.uploadbox.clearFiles();
+        },
+        onExceed() {
+            this.$message.error("超出文件数量限制");
         },
     },
 };
