@@ -29,14 +29,10 @@
 import Editor from "@tinymce/tinymce-vue";
 import Upload from "./Upload";
 import hljs_languages from "../assets/js/hljs_languages.js";
-import { __cms } from "@deepberry/common/data/common.json";
-
-const API_Root = process.env.NODE_ENV === "production" ? __cms : "/";
-const API = API_Root + "api/cms/system/upload/via/tinymce";
 
 export default {
     name: "Tinymce",
-    props: ["modelValue", "height", "attachmentEnable", "showTips", "uploadFn"],
+    props: ["modelValue", "height", "attachmentEnable", "showTips", "uploadFn", "baseURL"],
     emits: ["update:modelValue"],
     data: function () {
         return {
@@ -139,7 +135,7 @@ export default {
                 // Image
                 image_advtab: true,
                 file_picker_types: "file image",
-                images_upload_url: API,
+                images_upload_url: process.env.NODE_ENV === "production" ? this.baseURL : "/api/cms/system/upload/via/tinymce",
                 automatic_uploads: true,
                 images_upload_credentials: true,
                 valid_children: "+body[style]",
